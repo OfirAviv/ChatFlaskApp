@@ -41,9 +41,9 @@ def get_chat_solo(room):
     cursor = connection.cursor()
     cursor.execute("SELECT logged, username, messages FROM chat WHERE room = %s", (room,))
     chat = cursor.fetchall()
-    formatted_chat = [f"[{msg[0]}] {msg[1]}: {msg[2]}" for msg in chat]
+    formatted_chat = [f"[{msg[0]}] {msg[1]}: {msg[2]}<br/>\n" for msg in chat]
     connection.close()
-    return os.linesep.join(formatted_chat) + '\n'
+    return f'\n' + "\n".join(formatted_chat)
 
 @app.route("/api/chat/<room>")
 def get_chat(room):
