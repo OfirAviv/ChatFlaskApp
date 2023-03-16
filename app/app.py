@@ -12,9 +12,8 @@ app = Flask(__name__)
 #   password="password",
 #   database="access_log"
 # )
-# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# s.connect(("8.8.8.8", 80))
-# print(s.getsockname()[0])
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect(("8.8.8.8", 80))
 # creates a root route, by default this room name is 'general'
 @app.route("/")
 def index():
@@ -32,10 +31,12 @@ def get_chat_solo(room):
 
 @app.route("/api/chat/<room>")
 def get_chat(room):
+    global s
+    internal_ip_add = s.getsockname()[0]
     if not os.path.exists('/app/rooms/' + room + ".txt"):
-        open('/app/rooms/' + room + ".txt", 'a').close()
+        os.mknod('/app/rooms/' + room + ".txt")
     with open('/app/rooms/' + room + ".txt", "r") as file:
-        chat = file.read()
+        chat = file.read() + internal_ip_add
     return chat ,{"Content-Type":"text/plain"}
 
 @app.route("/api/chat/<room>", methods=["POST"])
@@ -43,7 +44,7 @@ def post_chat(room):
     user = request.form["username"]
     message = request.form["msg"]
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open('/app/rooms/' + room + ".txt", "w") as file:
+    with open('/app/rooms/' + room + ".txt", "a+") as file:
         file.write(f'{timestamp} {user}: {message}\n')
     return redirect(url_for("get_chat", room=room))
 
