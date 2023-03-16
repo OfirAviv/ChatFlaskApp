@@ -13,7 +13,7 @@ db = mysql.connector.connect(
   password="password",
   database="chatLogs"
 )
-# makes a pool configuration so all of the data will be replicated through the 3 containers
+# makes a pool configuration so all of the data will be persistent through the 3 containers
 pool_config = {
     "pool_name": "mypool",
     "pool_size": 3,
@@ -22,7 +22,7 @@ pool_config = {
     "password": "password",
     "database": "chatLogs"
 }
-
+pool = mysql.connector.pooling.MySQLConnectionPool(**pool_config)
 # creates a root route, by default this room name is 'general'
 @app.route("/")
 def index():
@@ -37,11 +37,12 @@ def room(room):
 @app.route("/chat/<room>")
 def get_chat_solo(room):
     # SELECT is selecting the given values in the connected db & table (chatLogs and chat) if the column 'room' is equal to the variable
-    cursor = db.cursor()
+    connection = pool.get_connection()
+    cursor = connection.cursor()
     cursor.execute("SELECT logged, username, messages FROM chat WHERE room = %s", (room,))
     chat = cursor.fetchall()
     formatted_chat = [f"[{msg[0]}] {msg[1]}: {msg[2]}" for msg in chat]
-    cursor.close()
+    connection.close()
     return os.linesep.join(formatted_chat) + '\n'
 
 @app.route("/api/chat/<room>")
@@ -51,12 +52,13 @@ def get_chat(room):
     s.connect(("8.8.8.8", 80))
     internal_ip_add = s.getsockname()[0]
     # SELECT is selecting said columns if the column 'room' is equal to the variable
-    cursor = db.cursor()
+    connection = pool.get_connection()
+    cursor = connection.cursor()
     cursor.execute("SELECT logged, username, messages FROM chat WHERE room = %s", (room,))
     chat = cursor.fetchall()
     # formatted_chat is responsible for beautifying the chat, making it our desired format of '<timestamp> <username>: <message>' after the command 'join'
     formatted_chat = [f"[{msg[0]}] {msg[1]}: {msg[2]}" for msg in chat]
-    cursor.close()
+    connection.close()
     # returning the internal ip address of the containar AND using 'join' to provide the desired format
     return f'{internal_ip_add}\n' + "\n".join(formatted_chat)
 
@@ -68,10 +70,11 @@ def post_chat(room):
     # using the datetime library to get the current time
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # INSERT is responsible for inserting given values, by order, to the already connected db & table, in our case chat
-    cursor = db.cursor()
+    connection = pool.get_connection()
+    cursor = connection.cursor()
     cursor.execute("INSERT INTO chat (room, logged, username, messages) VALUES(%s, %s, %s, %s)", (room, str(timestamp), user, message))
-    db.commit()
-    cursor.close()
+    connection.commit()
+    connection.close()
     return redirect(url_for("get_chat", room=room))
 
 if __name__ == "__main__":
